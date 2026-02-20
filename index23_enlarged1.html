@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>POINT OPTIMIZER</title>
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+JP:wght@300;400;700;900&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --black: #0a0a0a;
+            --white: #f5f0e8;
+            --gold: #c9a84c;
+            --gold-light: #e8d08a;
+            --red: #c0392b;
+            --gray: #2a2a2a;
+            --gray-mid: #444;
+            --gray-light: #888;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background: var(--black);
+            color: var(--white);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Center layout on large screens */
+        #page-input,
+        #page-result {
+            max-width: 480px;
+            margin: 0 auto;
+            border-left: 1px solid #1a1a1a;
+            border-right: 1px solid #1a1a1a;
+            background: var(--black);
+            position: relative;
+        }
+
+        /* Keep grid fixed to viewport */
+        .bg-grid {
+            position: fixed !important;
+        }
+
+        /* ========== PAGE SYSTEM ========== */
+        .page { display: none; min-height: 100vh; }
+        .page.active { display: block; }
+
+        /* ========== PAGE 1: INPUT ========== */
+        #page-input {
+            position: relative;
+            padding-bottom: 60px;
+        }
+
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .header {
+            position: relative;
+            z-index: 1;
+            padding: 48px 24px 32px;
+            border-bottom: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .header-eyebrow {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            letter-spacing: 0.25em;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        .header-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(64px, 16vw, 100px);
+            line-height: 0.9;
+            letter-spacing: 0.02em;
+            color: var(--white);
+        }
+
+        .header-title span { color: var(--gold); }
+
+        .header-sub {
+            margin-top: 10px;
+            font-size: 11px;
+            color: var(--gray-light);
+            font-weight: 300;
+            letter-spacing: 0.05em;
+        }
+
+        /* ========== MILE VALUE STRIP ========== */
+        .mile-strip {
+            position: relative;
+            z-index: 1;
+            margin: 24px 24px 0;
+            border: 1px solid #2a2a2a;
+            border-left: 3px solid var(--gold);
+            padding: 14px 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(201,168,76,0.04);
+        }
+
+        .mile-label {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.2em;
+            color: var(--gold);
+            text-transform: uppercase;
+        }
+
+        .mile-input-wrap {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .mile-input-wrap input {
+            width: 52px;
+            background: var(--gray);
+            border: 1px solid #333;
+            color: var(--white);
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 28px;
+            text-align: center;
+            padding: 2px 4px;
+            line-height: 1;
+        }
+
+        .mile-input-wrap input:focus { outline: none; border-color: var(--gold); }
+        .mile-unit { font-size: 12px; color: var(--gray-light); font-weight: 300; }
+
+        /* ========== SECTION TITLE ========== */
+        .section-title {
+            position: relative;
+            z-index: 1;
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.3em;
+            color: var(--gray-light);
+            text-transform: uppercase;
+            padding: 24px 24px 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .section-title::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #222;
+        }
+
+        /* ========== INPUT GRID ========== */
+        .input-grid {
+            position: relative;
+            z-index: 1;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .input-cell {
+            background: #111;
+            border: 1px solid #222;
+            padding: 6px 10px;
+            transition: border-color 0.2s;
+        }
+        .input-cell:focus-within { border-color: var(--gold); }
+        .input-cell.full { grid-column: 1 / -1; background: #141414; border-color: #2a2a2a; }
+
+        .input-cell label {
+            display: block;
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            letter-spacing: 0.15em;
+            color: var(--gray-light);
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+
+        .input-cell.full label { color: var(--gold); }
+
+        .input-cell input {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--white);
+            font-family: 'DM Mono', monospace;
+    font-size: 18px;      /* ←小さくする */
+    padding: 2px 0;       /* ←余白を削る */
+    line-height: 1.2;     /* ←高さを締める */
+        }
+        .input-cell.full input { font-size: 32px; }
+        .input-cell input:focus { outline: none; }
+
+        /* ========== CARRIER ========== */
+        .carrier-wrap {
+            position: relative;
+            z-index: 1;
+            margin: 10px 24px 0;
+            background: #111;
+            border: 1px solid #222;
+            padding: 14px 16px;
+        }
+
+        .carrier-label-row {
+            font-family: 'DM Mono', monospace;
+            font-size: 9px;
+            letter-spacing: 0.2em;
+            color: var(--gray-light);
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .carrier-options {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .carrier-option {
+            display: flex;
+            align-items: center;
+            gap: 0;
+        }
+
+        .carrier-option input[type="radio"] { display: none; }
+
+        .carrier-option label {
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            letter-spacing: 0.1em;
+            padding: 6px 14px;
+            border: 1px solid #333;
+            cursor: pointer;
+            transition: all 0.15s;
+            color: var(--gray-light);
+        }
+
+        .carrier-option input[type="radio"]:checked + label {
+            background: var(--gold);
+            color: var(--black);
+            border-color: var(--gold);
+            font-weight: 700;
+        }
+
+        /* ========== ACTIONS ========== */
+        .actions {
+            position: relative;
+            z-index: 1;
+            padding: 24px 24px 0;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+        }
+
+        .btn-calc {
+            background: var(--gold);
+            color: var(--black);
+            border: none;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 22px;
+            letter-spacing: 0.15em;
+            padding: 18px 32px;
+            cursor: pointer;
+            transition: all 0.15s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-calc::after {
+            content: '→';
+            position: absolute;
+            right: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 20px;
+            transition: right 0.2s;
+        }
+
+        .btn-calc:hover { background: var(--gold-light); }
+        .btn-calc:hover::after { right: 14px; }
+
+        .btn-reset {
+            background: transparent;
+            color: var(--gray-light);
+            border: 1px solid #333;
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            padding: 0 18px;
+            cursor: pointer;
+            transition: all 0.15s;
+            text-transform: uppercase;
+        }
+        .btn-reset:hover { border-color: var(--red); color: var(--red); }
+
+        /* ========== PAGE 2: RESULTS ========== */
+        #page-result {
+            position: relative;
+            padding-bottom: 80px;
+        }
+
+        .result-header {
+            position: relative;
+            z-index: 1;
+            padding: 48px 24px 0;
+            border-bottom: 1px solid #222;
+            padding-bottom: 24px;
+        }
+
+        .result-header-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .btn-back {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            letter-spacing: 0.15em;
+            color: var(--gold);
+            background: transparent;
+            border: 1px solid #333;
+            padding: 8px 16px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            margin-top: 8px;
+        }
+        .btn-back:hover { border-color: var(--gold); }
+
+        .result-title {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: clamp(52px, 14vw, 80px);
+            line-height: 0.88;
+            color: var(--white);
+        }
+        .result-title span { color: var(--gold); }
+
+        .result-meta {
+            font-family: 'DM Mono', monospace;
+            font-size: 13px;
+            color: var(--gray-light);
+            letter-spacing: 0.15em;
+            margin-top: 10px;
+        }
+
+        /* ========== RANK CARDS ========== */
+        .rank-list {
+            position: relative;
+            z-index: 1;
+            padding: 24px 24px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .rank-card {
+            border: 1px solid #1e1e1e;
+            padding: 18px 18px 16px;
+            position: relative;
+            background: #0e0e0e;
+            transition: border-color 0.2s;
+            animation: slideUp 0.4s ease both;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .rank-card.rank-1 {
+            background: linear-gradient(135deg, #1a1400 0%, #0e0e0e 60%);
+            border-color: var(--gold);
+            border-width: 1px;
+        }
+
+        .rank-card.rank-2 { border-color: #2a2a2a; }
+        .rank-card.rank-3 { border-color: #1e1e1e; }
+
+        .rank-num {
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 14px;
+            letter-spacing: 0.2em;
+            padding: 4px 10px;
+            line-height: 1;
+        }
+
+        .rank-1 .rank-num { background: var(--gold); color: var(--black); }
+        .rank-2 .rank-num { background: #888; color: var(--black); }
+        .rank-3 .rank-num { background: #6a4f2a; color: var(--white); }
+        .rank-card:not(.rank-1):not(.rank-2):not(.rank-3) .rank-num {
+            background: #1e1e1e;
+            color: var(--gray-light);
+        }
+
+        .rank-body {
+            margin-top: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .rank-name-block {}
+
+        .rank-brand {
+            font-family: 'DM Mono', monospace;
+            font-size: 22px;
+            letter-spacing: 0.2em;
+            color: var(--gray-light);
+            text-transform: uppercase;
+        }
+        .rank-1 .rank-brand { font-size: 26px;color: var(--gold); }
+
+        .rank-name {
+            font-size: 13px;
+            font-weight: 900;
+            letter-spacing: 0.02em;
+            margin-top: 3px;
+            line-height: 1;
+        }
+        .rank-1 .rank-name { font-size: 13px; }
+
+        .rank-score-block { text-align: right; flex-shrink: 0; }
+
+        .rank-score {
+            font-family: 'Bebas Neue', sans-serif;
+            font-size: 40px;
+            line-height: 1;
+            letter-spacing: 0.02em;
+            color: var(--white);
+        }
+        .rank-1 .rank-score { font-size: 50px; color: var(--gold); }
+        .rank-2 .rank-score, .rank-3 .rank-score { font-size: 42px; }
+
+        .rank-score-unit {
+            font-family: 'DM Mono', monospace;
+            font-size: 12px;
+            color: var(--gray-light);
+            letter-spacing: 0.1em;
+        }
+
+        .rank-details {
+            margin-top: 12px;
+            padding-top: 10px;
+            border-top: 1px solid #1e1e1e;
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+
+        .rank-1 .rank-details { border-top-color: #2a2000; }
+
+        .detail-item {
+            font-family: 'DM Mono', monospace;
+            font-size: 10px;
+            color: var(--gray-light);
+            letter-spacing: 0.05em;
+        }
+        .detail-item span { color: #bbb; }
+        .rank-1 .detail-item span { color: var(--gold-light); }
+
+        .rank-rates {
+            margin-top: 8px;
+            font-family: 'DM Mono', monospace;
+            font-size: 11px;
+            color: #444;
+            letter-spacing: 0.05em;
+            line-height: 1.8;
+        }
+
+        /* Score bar */
+        .score-bar-wrap { margin-top: 10px; }
+        .score-bar {
+            height: 2px;
+            background: #1e1e1e;
+            position: relative;
+            overflow: hidden;
+        }
+        .score-bar-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            background: var(--gold);
+            transition: width 0.8s ease;
+        }
+        .rank-card:not(.rank-1) .score-bar-fill { background: #444; }
+
+        /* Divider line */
+        .divider {
+            position: relative;
+            z-index: 1;
+            height: 1px;
+            background: #111;
+            margin: 0 24px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="bg-grid"></div>
+
+<!-- ==================== PAGE 1: INPUT ==================== -->
+<div id="page-input" class="page active">
+
+    <div class="header">
+        <div class="header-eyebrow">Mile &amp; Point Optimizer v3.0</div>
+        <div class="header-title">POINT<span>CALC</span></div>
+        <div class="header-sub">利用額を入力して最適なカードをランキング。<br>キャンペーンではなく、常に５％以上の還元率な項目から選びます。<br>当サイトのランキングは広告提携の有無に影響されません。</div>
+    </div>
+
+    <div class="mile-strip">
+        <div class="mile-label">✈ マイル換算レート</div>
+        <div class="mile-input-wrap">
+            <input type="number" id="mileValue" value="1" min="0.5" max="10" step="0.5" onchange="calc()">
+            <span class="mile-unit">円 / mile</span>
+        </div>
+    </div>
+
+    <div class="section-title">利用額入力</div>
+
+    <div id="input-form" class="input-grid"></div>
+
+    <div class="section-title" style="margin-top:10px;">キャリア</div>
+
+    <div class="carrier-wrap">
+        <div class="carrier-label-row">利用中のキャリアを選択</div>
+        <div class="carrier-options">
+            <div class="carrier-option">
+                <input type="radio" name="carrier" id="c-docomo" value="docomo" checked onchange="calc()">
+                <label for="c-docomo">ドコモ</label>
+            </div>
+            <div class="carrier-option">
+                <input type="radio" name="carrier" id="c-au" value="au" onchange="calc()">
+                <label for="c-au">au</label>
+            </div>
+            <div class="carrier-option">
+                <input type="radio" name="carrier" id="c-sb" value="softbank" onchange="calc()">
+                <label for="c-sb">SB / PayPay</label>
+            </div>
+            <div class="carrier-option">
+                <input type="radio" name="carrier" id="c-rk" value="rakuten" onchange="calc()">
+                <label for="c-rk">楽天</label>
+            </div>
+        </div>
+    </div>
+
+    <div class="actions">
+        <button class="btn-calc" onclick="showResults()">SHOW RANKING</button>
+        <button class="btn-reset" onclick="clearValues()">RESET</button>
+    </div>
+
+</div>
+
+<!-- ==================== PAGE 2: RESULTS ==================== -->
+<div id="page-result" class="page">
+
+    <div class="bg-grid"></div>
+
+    <div class="result-header">
+        <div class="result-header-top">
+            <div>
+                <div class="header-eyebrow" style="margin-bottom:6px;">Results</div>
+                <div class="result-title">CARD<br><span>RANKING</span></div>
+            </div>
+            <button class="btn-back" onclick="goBack()">← 戻る</button>
+        </div>
+        <div class="result-meta" id="result-meta">—</div>
+    </div>
+
+    <div id="result-list" class="rank-list"></div>
+
+</div>
+
+<script>
+/* ========================================
+   DATA
+======================================== */
+const INPUT_ITEMS = [
+    { id: "total",       label: "合計利用額",   val: 1000000, full: true },
+    { id: "mobile",      label: "スマホ代",      val: 0,  full: false },
+    { id: "stock",       label: "証券積立",      val: 0,  full: false },
+    { id: "teiki",       label: "JR東定期券",    val: 0,  full: false },
+    { id: "shinkansen",  label: "JR東新幹線",    val: 0,  full: false },
+    { id: "flight",      label: "飛行機",        val: 0,  full: false },
+    { id: "netShop",     label: "ネット通販",    val: 0,  full: false },
+    { id: "conv",        label: "コンビニ",      val: 0,  full: false },
+    { id: "fastfood",    label: "外食 / FF",     val: 0,  full: false },
+    { id: "supermarket", label: "スーパー",      val: 0,  full: false }
+];
+
+function lookup(value, thresholds, results){
+    for(let i = thresholds.length - 1; i >= 0; i--){
+        if(value >= thresholds[i]) return results[i];
+    }
+    return results[0];
+}
+
+const CARD_DATA = [
+    { brand:"三井住友", name:"ゴールド", fee:(t)=>lookup(t,[0,1000000],[5500,0]), bonus:0, spendBonus:(t)=>lookup(t,[0,1000000],[0,10000]), rates:{base:0.005, stock:(t)=>lookup(t,[0,100000,1000000],[0,0.0075,0.01]), conv:0.07, fastfood:0.07} },
+    { brand:"三井住友", name:"プラチナプリファード", fee:33000, bonus:0, spendBonus:(t)=>lookup(t,[0,1000000,2000000,3000000,4000000],[0,10000,20000,30000,40000]), rates:{base:0.005, stock:(t)=>lookup(t,[0,3000000,5000000],[0.01,0.02,0.03]), conv:0.07, fastfood:0.07} },
+    { brand:"三井住友", name:"Olive一般", fee:0, bonus:2400, spendBonus:0, rates:{base:0.005, stock:(t)=>lookup(t,[0,100000],[0,0.005]), conv:0.07, fastfood:0.07} },
+    { brand:"楽天", name:"一般", fee:0, bonus:0, spendBonus:0, rates:{base:0.01, stock:0.005, netShop:0.1} },
+    { brand:"楽天", name:"ゴールド", fee:2200, bonus:0, spendBonus:0, rates:{base:0.01, stock:0.005, netShop:0.1} },
+    { brand:"楽天", name:"プレミアム", fee:11000, bonus:0, spendBonus:0, rates:{base:0.01, stock:0.005, netShop:0.1} },
+    { brand:"dカード", name:"一般", fee:0, bonus:2300, spendBonus:0, mobileCarrier:"docomo", rates:{base:0.01, mobile:0.1, stock:0.0073} },
+    { brand:"dカード", name:"ゴールド", fee:11000, bonus:0, spendBonus:(t)=>lookup(t,[0,1000000],[0,10000]), mobileCarrier:"docomo", rates:{base:0.01, mobile:0.1, stock:0.0073} },
+    { brand:"dカード", name:"PLATINUM", fee:29700, bonus:0, spendBonus:(t)=>lookup(t,[0,1000000,2000000,3000000,4000000],[0,10000,20000,30000,40000]), mobileCarrier:"docomo", rates:{base:0.01, mobile:0.2, stock:0.0073} },
+    { brand:"JCB", name:"W", fee:0, bonus:0, spendBonus:0, rates:{base:0.01, stock:(t)=>lookup(t,[0,600000],[0,0.005])} },
+    { brand:"JCB", name:"ゴールド", fee:11000, bonus:0, spendBonus:0, rates:{base:0.005, stock:(t)=>lookup(t,[0,600000],[0.005,0.01])} },
+    { brand:"au PAY", name:"一般", fee:0, bonus:0, spendBonus:0, rates:{base:0.01, stock:0.015} },
+    { brand:"au PAY", name:"ゴールド", fee:11000, bonus:0, spendBonus:(t)=>lookup(t,[0,1000000,1500000,2000000],[0,500,1500,4000]), rates:{base:0.015, stock:0.02} },
+    { brand:"PayPay", name:"一般", fee:0, bonus:0, spendBonus:0, mobileCarrier:"softbank", rates:{base:0.01, mobile:0.1, stock:0.007, netShop:0.05} },
+    { brand:"PayPay", name:"ゴールド", fee:11000, bonus:0, spendBonus:0, mobileCarrier:"softbank", rates:{base:0.015, mobile:0.1, stock:0.007, netShop:0.07} },
+    { brand:"ビュー", name:"一般", fee:524, bonus:0, spendBonus:(t)=>lookup(t,[0,700000],[0,1000]), rates:{base:0.005, stock:0, teiki:0.05, shinkansen:0.05} },
+    { brand:"ビュー", name:"ゴールド", fee:11000, bonus:(t)=>lookup(t,[0,1000000],[0,5000]), spendBonus:(t)=>lookup(t,[0,1500000,2000000,2500000],[0,3000,6000,9000,12000]), rates:{base:0.005, stock:0, teiki:0.06, shinkansen:0.1} },
+    { brand:"JALSuica", name:"普通", isMile:true, fee:7170, bonus:1000, spendBonus:0, rates:{base:0.01, stock:0, teiki:0.05, shinkansen:0.05, flight:0.015} },
+    { brand:"JALSuica", name:"CLUB-Aゴールド", isMile:true, fee:20900, bonus:2000, spendBonus:0, rates:{base:0.01, stock:0, teiki:0.05, shinkansen:0.05, flight:0.02} },
+    { brand:"ソラチカ", name:"一般", isMile:true, fee:7700, bonus:1000, spendBonus:0, rates:{base:0.01, stock:0} },
+    { brand:"ANA JCB", name:"ゴールド", isMile:true, fee:15400, bonus:2000, spendBonus:0, rates:{base:0.01, stock:0, flight:0.02} },
+    { brand:"三菱UFJ", name:"一般", fee:0, bonus:0, spendBonus:0, rates:{base:0.005, stock:0.005, supermarket:0.1} },
+    { brand:"リクルート", name:"一般", fee:0, bonus:0, spendBonus:0, rates:{base:0.012, stock:0} }
+
+];
+
+const LABEL_MAP = {
+    base:"通常", mobile:"スマホ(特別)", mobile_base:"スマホ(通常)", stock:"積立", teiki:"定期",
+    shinkansen:"新幹線", flight:"航空券", netShop:"通販",
+    conv:"コンビニ", fastfood:"外食", supermarket:"スーパー"
+};
+
+const CARRIER_LABEL = { docomo:"ドコモ", softbank:"SB/PayPay", au:"au", rakuten:"楽天" };
+
+/* ========================================
+   FORM INIT
+======================================== */
+function initForm(){
+    const form = document.getElementById("input-form");
+    form.innerHTML = "";
+    INPUT_ITEMS.forEach(item => {
+        const div = document.createElement("div");
+        div.className = "input-cell" + (item.full ? " full" : "");
+        div.innerHTML = `
+            <label for="${item.id}">${item.label}</label>
+            <input type="number" id="${item.id}" value="${item.val}" onchange="calc()">
+        `;
+        form.appendChild(div);
+    });
+}
+
+/* ========================================
+   CALC
+======================================== */
+let lastResults = [];
+
+function calc(){
+    const mileValue = Number(document.getElementById("mileValue").value) || 2;
+    const selectedCarrier = document.querySelector('input[name="carrier"]:checked')?.value || "docomo";
+    const values = {};
+    INPUT_ITEMS.forEach(i => {
+        const el = document.getElementById(i.id);
+        values[i.id] = el ? Number(el.value) || 0 : 0;
+    });
+    const total = values.total;
+
+    lastResults = CARD_DATA.map(card => {
+        const fee = typeof card.fee === "function" ? card.fee(total) : card.fee;
+        const bonus = typeof card.bonus === "function" ? card.bonus(total) : (card.bonus || 0);
+        const spendBonus = typeof card.spendBonus === "function" ? card.spendBonus(total) : (card.spendBonus || 0);
+
+        // キャリア一致判定
+        const carrierMatches = !card.mobileCarrier || card.mobileCarrier === selectedCarrier;
+
+        let earnYen = 0, earnMile = 0, usedAmount = 0, rateLog = {};
+
+        Object.keys(values).forEach(k => {
+            if(k === "total") return;
+            const amount = values[k] || 0;
+            if(amount === 0) return;
+
+            // スマホ代 & キャリア不一致 → baseレートで残額扱い（ここではスキップ）
+            if(k === "mobile" && !carrierMatches) return;
+
+            const rateDef = card.rates?.[k];
+            if(rateDef !== undefined){
+                const rate = typeof rateDef === "function" ? rateDef(total) : rateDef;
+                const earned = amount * rate;
+                if(card.isMile && (k === "teiki" || k === "shinkansen")) earnYen += earned;
+                else if(card.isMile) earnMile += earned;
+                else earnYen += earned;
+                usedAmount += amount;
+                rateLog[k] = rate;
+            }
+        });
+
+        // 残額 = 合計 - カテゴリ計上済み額
+        // キャリア不一致の場合、スマホ代もremainingに含まれてbaseレートが適用される
+        const remaining = Math.max(total - usedAmount, 0);
+        const baseRateDef = card.rates?.base ?? 0;
+        const baseRate = typeof baseRateDef === "function" ? baseRateDef(total) : baseRateDef;
+        const baseEarn = remaining * baseRate;
+        if(card.isMile) earnMile += baseEarn;
+        else earnYen += baseEarn;
+
+        // rateLogにスマホの実効レートを記録
+        if(values.mobile > 0) {
+            if(carrierMatches && card.rates?.mobile !== undefined) {
+                const mRate = typeof card.rates.mobile === "function" ? card.rates.mobile(total) : card.rates.mobile;
+                rateLog["mobile"] = mRate;
+            } else if(values.mobile > 0 && card.mobileCarrier) {
+                rateLog["mobile_base"] = baseRate; // 非対応キャリアはbase適用中を示す
+            }
+        }
+        rateLog["base"] = baseRate;
+
+        const score = earnYen + (earnMile * mileValue) + bonus + spendBonus - fee;
+        return { brand: card.brand, name: card.name, score, fee, bonus, spendBonus, rateLog, isMile: card.isMile, carrierMatches, mobileCarrier: card.mobileCarrier };
+    }).sort((a, b) => b.score - a.score);
+}
+
+/* ========================================
+   PAGE NAV
+======================================== */
+function showResults(){
+    calc();
+    renderResults();
+    document.getElementById("page-input").classList.remove("active");
+    document.getElementById("page-result").classList.add("active");
+    window.scrollTo(0, 0);
+}
+
+function goBack(){
+    document.getElementById("page-result").classList.remove("active");
+    document.getElementById("page-input").classList.add("active");
+    window.scrollTo(0, 0);
+}
+
+/* ========================================
+   RENDER
+======================================== */
+function renderResults(){
+    const mobileEl = document.getElementById("mobile");
+    const values_mobile = mobileEl ? Number(mobileEl.value) || 0 : 0;
+    const list = document.getElementById("result-list");
+    list.innerHTML = "";
+
+    const totalEl = document.getElementById("total");
+    const total = totalEl ? Number(totalEl.value).toLocaleString() : "—";
+    document.getElementById("result-meta").textContent =
+        `合計利用額 ¥${total} ／ ${lastResults.length} カードを比較`;
+
+    const topScore = lastResults[0]?.score || 1;
+
+    lastResults.forEach((r, i) => {
+        const rank = i + 1;
+        const pct = Math.max(0, (r.score / topScore) * 100).toFixed(1);
+        const isPositive = r.score >= 0;
+
+        const div = document.createElement("div");
+        div.className = `rank-card rank-${rank}`;
+        div.style.animationDelay = `${i * 40}ms`;
+
+        const ratesHtml = Object.entries(r.rateLog)
+            .filter(([,v]) => v > 0)
+            .map(([k,v]) => `${LABEL_MAP[k]||k} ${(v*100).toFixed(2)}%`)
+            .join("  ·  ");
+
+        const scoreColor = isPositive ? "" : "style='color:#c0392b'";
+
+        // キャリアバッジ
+        const carrierBadge = r.mobileCarrier && values_mobile > 0
+            ? `<span style="font-family:'DM Mono',monospace;font-size:8px;padding:2px 7px;margin-left:6px;border:1px solid ${r.carrierMatches ? '#c9a84c' : '#444'};color:${r.carrierMatches ? '#c9a84c' : '#666'}">${CARRIER_LABEL[r.mobileCarrier]}${r.carrierMatches ? " ✓" : " —"}</span>`
+            : "";
+
+        div.innerHTML = `
+            <div class="rank-num">RANK ${rank}</div>
+            <div class="rank-body">
+                <div class="rank-name-block">
+                    <div class="rank-brand" style="display:flex;align-items:center;gap:4px;">${r.brand}${r.isMile ? " ✈" : ""}${carrierBadge}</div>
+                    <div class="rank-name">${r.name}</div>
+                </div>
+                <div class="rank-score-block">
+                    <div class="rank-score" ${scoreColor}>${r.score >= 0 ? "+" : ""}${Math.round(r.score).toLocaleString()}</div>
+                    <div class="rank-score-unit">円相当 / 年</div>
+                </div>
+            </div>
+            <div class="score-bar-wrap">
+                <div class="score-bar">
+                    <div class="score-bar-fill" style="width:${pct}%"></div>
+                </div>
+            </div>
+            <div class="rank-details">
+                <div class="detail-item">年会費 <span>-¥${r.fee.toLocaleString()}</span></div>
+                <div class="detail-item">継続特典 <span>+¥${r.bonus.toLocaleString()}</span></div>
+                <div class="detail-item">利用額特典 <span>+¥${r.spendBonus.toLocaleString()}</span></div>
+            </div>
+            ${ratesHtml ? `<div class="rank-rates">${ratesHtml}</div>` : ""}
+        `;
+        list.appendChild(div);
+    });
+}
+
+/* ========================================
+   RESET
+======================================== */
+function clearValues(){
+    INPUT_ITEMS.forEach(item => {
+        const el = document.getElementById(item.id);
+        if(el) el.value = item.id === "total" ? 1000000 : 0;
+    });
+    document.getElementById("mileValue").value = 2;
+    const doc = document.querySelector('input[name="carrier"][value="docomo"]');
+    if(doc) doc.checked = true;
+    calc();
+}
+
+/* ========================================
+   INIT
+======================================== */
+initForm();
+calc();
+</script>
+</body>
+</html>
